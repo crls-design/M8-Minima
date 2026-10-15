@@ -1,0 +1,3 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#include "../dts/upstream/src/arm64/freescale/imx8mm-m8-minima.dts"

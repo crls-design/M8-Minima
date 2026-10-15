@@ -1,0 +1,357 @@
+#  Version 23      
+#      Note, though the extension of this file implies use with the DS5 debugger,      
+#      the file is meant specifically for the DDR Stress Test GUI tool.       
+#      It contains data commands which are not compatible with the DS5 debugger,      
+#      trying to use this file with DS5 will result in errors.      
+#      There are currently no plans to create a DS5 JTAG DRAM initialization script.      
+#      
+# DCD command:      
+# CMD_WRITE_DATA: memory set ADDR BITWIDTH VALUE                 : *ADDR = VALUE      
+# CMD_SET_BIT:    memory setbit ADDR BITWIDTH VALUE              : *ADDR = *ADDR | VALUE      
+# CMD_CLR_BIT:    memory clrbit ADDR BITWIDTH VALUE              : *ADDR = *ADDR &~ VALUE      
+# CMD_CHECK_BIT_SET:  memory chkbit1 ADDR BITWIDTH VALUE         : while((*ADDR & VALUE) != VALUE){}      
+# CMD_CHECK_BIT_CLR:  memory chkbit0 ADDR BITWIDTH VALUE         : while((*ADDR & VALUE) != 0){}      
+###########################################################################################################      
+      
+################step 0: configure debug uart port. Assumes use of UART IO Pads.   #####      
+##### If using non-UART pads (i.e. using other pads to mux out the UART signals), #####      
+##### then it is up to the user to overwrite the following IO register settings   #####      
+memory set 0x3033023C 32 0x00000000  #IOMUXC_SW_MUX_UART2_RXD  
+memory set 0x30330240 32 0x00000000 #IOMUXC_SW_MUX_UART2_TXD  
+memory set 0x303304A4 32 0x0000000E #IOMUXC_SW_PAD_UART2_RXD  
+memory set 0x303304A8 32 0x0000000E #IOMUXC_SW_PAD_UART2_TXD  
+memory set 0x303304FC 32 0x00000000 #IOMUXC_SW_MUX_UART2_SEL_RXD  
+sysparam set  debug_uart   1 #UART index from 0 ('0' = UART1, '1' = UART2, '2' = UART3, '3' = UART4)  
+      
+################step 1: DDR clock configuration################      
+memory set 0x30391000 32 0x8F00003F #SRC_DDRC_RCR_ADDR: assert [0]ddr1_preset_n, [1]ddr1_core_reset_n, [2]ddr1_phy_reset, [3]ddr1_phy_pwrokin_n, [4]src_system_rst_b!  
+memory set 0x30391000 32 0x8F00000F #SRC_DDRC_RCR_ADDR: deassert [4]src_system_rst_b!  
+      
+memory set 0x3038A088 32 0x07070000 #DRAM_APB_CLK_ROOT_CLR  
+memory set 0x3038A084 32 0x04030000 #DRAM_APB_CLK_ROOT_SET, dram_apb_clk_root set to source 4 --800MHz/4  
+      
+#disable the clock gating      
+memory set 0x303A00EC 32 0x0000FFFF #PGC_CPU_MAPPING  
+memory setbit 0x303A00F8 32 0x20 #GPC_PU_PGC_SW_PUP_REQ: DDR1_SW_PUP_REQ=1  
+      
+memory set 0x30391004 32 0x8F000000 #SRC_DDRC_RCR_ADDR  
+      
+#DRAM_PLL_CONFIG      
+# The RPA provides the DRAM_PLL_FDIV_CTL0 register (0x30360054) setting for 1500Mhz (0xFA080).      
+# For frequencies other than 1500Mhz, it is up to the user to create the appropriate register setting for the desired frequency.      
+# Formula is DDR_freq = [(24MHz x pll_main_div)/(pll_pre_div x 2^pll_post_div)] x 2      
+memory set 0x30360054 32 0xFA080 #DRAM_PLL_FDIV_CTL0: For 1500MHz, pll_main_div = 250, pll_pre_div = 8, pll_post_div = 0  
+memory set 0x30360058 32 0x00000000 #DRAM_PLL_FDIV_CTL1: pll_dsm=0  
+memory setbit  0x30360050 32 0x200  #DRAM_PLL_GNRL_CTL: pll_rst = 1  
+memory clrbit 0x30360050 32 0x10 #DRAM_PLL_GNRL_CTL: pll_bypass = 0  
+memory chkbit1 0x30360050 32 0x80000000 #DRAM_PLL_GNRL_CTL: check pll_lock=1?  
+      
+memory set 0x30391000 32 0x8F000006   
+      
+################step2: DDRC configuration ################      
+memory set  0x3d400304 32 0x00000001 #DDRC_DBG1: dis_dq=1, indicates no reads or writes are issued to SDRAM  
+memory set  0x3d400030 32 0x00000001 #DDRC_PWRCTL: selfref_en=1, SDRAM enter self-refresh state  
+memory set  0x3D400000 32 0xA3080020 #DDRC_MSTR     
+memory set  0x3D400020 32 0x00000223 #DDRC_DERATEEN  
+memory set  0x3D400024 32 0x0003A980 #DDRC_DERATEINT  
+memory set  0x3D400064 32 0x005B00D2 #DDRC_RFSHTMG  
+      
+memory set  0x3D4000D0 32 0xC00305BA #DDRC_INIT0    
+memory set  0x3D4000D4 32 0x00940000 #DDRC_INIT1    
+memory set  0x3D4000DC 32 0x00D4002D #DDRC_INIT3    
+memory set  0x3D4000E0 32 0x00310000 #DDRC_INIT4    
+memory set  0x3D4000E8 32 0x0066004D #DDRC_INIT6    
+memory set  0x3D4000EC 32 0x0016004D #DDRC_INIT7    
+      
+memory set 0x3D400100 32 0x191E1920 #DDRC_DRAMTMG0   
+memory set 0x3D400104 32 0x00060630 #DDRC_DRAMTMG1   
+memory set 0x3D40010C 32 0x00B0B000 #DDRC_DRAMTMG3   
+memory set 0x3D400110 32 0x0E04080E #DDRC_DRAMTMG4   
+memory set 0x3D400114 32 0x02040C0C #DDRC_DRAMTMG5   
+memory set 0x3D400118 32 0x01010007 #DDRC_DRAMTMG6   
+memory set 0x3D40011C 32 0x00000402 #DDRC_DRAMTMG7   
+memory set 0x3D400130 32 0x00020600 #DDRC_DRAMTMG12  
+memory set 0x3D400134 32 0x0C100002 #DDRC_DRAMTMG13  
+memory set 0x3D400138 32 0x000000D8 #DDRC_DRAMTMG14  
+memory set 0x3D400144 32 0x0096004B #DDRC_DRAMTMG17  
+      
+memory set 0x3D400180 32 0x02EE0017 #DDRC_ZQCTL0     
+memory set 0x3D400184 32 0x02605B8E #DDRC_ZQCTL1     
+memory set 0x3D400188 32 0x00000000 #DDRC_ZQCTL2  
+      
+memory set 0x3D400190 32 0x0497820A #DDRC_DFITMG0    
+memory set 0x3D400194 32 0x00080303 #DDRC_DFITMG1    
+memory set 0x3D4001B4 32 0x0000170A #DDRC_DFITMG2    
+memory set 0x3D4001A0 32 0xE0400018 #DDRC_DFIUPD0    
+memory set 0x3D4001A4 32 0x00DF00E4 #DDRC_DFIUPD1    
+memory set 0x3D4001A8 32 0x80000000 #DDRC_DFIUPD2    
+memory set 0x3D4001B0 32 0x00000011 #DDRC_DFIMISC    
+      
+memory set 0x3D4001C0 32 0x00000001 #DDRC_DBICTL     
+memory set 0x3D4001C4 32 0x00000001 #DDRC_DFI_PHYMSTR  
+      
+## the following may be refined by ddrphy training firmware      
+memory set 0x3D4000F4 32 0x00000699 #DDRC_RANKCTL   
+memory set 0x3D400108 32 0x070E1617 #DDRC_DRAMTMG2   
+      
+memory set 0x3D400200 32 0x00000017 #DDRC_ADDRMAP0   
+memory set 0x3D40020C 32 0x00000000 #DDRC_ADDRMAP3   
+memory set 0x3D400210 32 0x00001F1F #DDRC_ADDRMAP4   
+memory set 0x3D400204 32 0x00080808 #DDRC_ADDRMAP1   
+memory set 0x3D400214 32 0x07070707 #DDRC_ADDRMAP5   
+memory set 0x3D400218 32 0x07070707 #DDRC_ADDRMAP6   
+memory set 0x3D40021C 32 0x00000F0F #DDRC_ADDRMAP7  
+      
+memory set 0x3D400250 32 0x29001701 #DDRC_SCHED  
+memory set 0x3D400254 32 0x0000002C #DDRC_SCHED1  
+memory set 0x3D40025C 32 0x04000030 #DDRC_PERFHPR1  
+memory set 0x3D400264 32 0x900093E7 #DDRC_PERFLPR1  
+memory set 0x3D40026C 32 0x02005574 #DDRC_PERFWR1  
+memory set 0x3D400400 32 0x00000111 #DDRC_PCCFG   
+memory set 0x3D400408 32 0x000072FF #DDRC_PCFGW_0   
+memory set 0x3D400494 32 0x02100E07 #DDRC_PCFGQOS0_0   
+memory set 0x3D400498 32 0x00620096 #DDRC_PCFGQOS1_0   
+memory set 0x3D40049C 32 0x01100E07 #DDRC_PCFGWQOS0_0  
+memory set 0x3D4004A0 32 0x00C8012C #DDRC_PCFGWQOS1_0  
+      
+# DDR-200MHz clock configuration      
+memory set 0x3D402020 32 0x00000021 #DDRC_FREQ1_DERATEEN  
+memory set 0x3D402024 32 0x00007D00 #DDRC_FREQ1_DERATEINT  
+memory set 0x3D402050 32 0x0020D040 #DDRC_FREQ1_RFSHCTL0  
+memory set 0x3D402064 32 0x000C001C #DDRC_FREQ1_RFSHTMG  
+memory set 0x3D4020DC 32 0x00840000 #DDRC_FREQ1_INIT3  
+memory set 0x3D4020E0 32 0x00310000 #DDRC_FREQ1_INIT4  
+memory set 0x3D4020E8 32 0x0066004D #DDRC_FREQ1_INIT6  
+memory set 0x3D4020EC 32 0x0016004D #DDRC_FREQ1_INIT7  
+memory set 0x3D402100 32 0x0A040305 #DDRC_FREQ1_DRAMTMG0  
+memory set 0x3D402104 32 0x00030407 #DDRC_FREQ1_DRAMTMG1  
+memory set 0x3D402108 32 0x0203060B #DDRC_FREQ1_DRAMTMG2  
+memory set 0x3D40210C 32 0x00505000 #DDRC_FREQ1_DRAMTMG3  
+memory set 0x3D402110 32 0x02040202 #DDRC_FREQ1_DRAMTMG4  
+memory set 0x3D402114 32 0x02030202 #DDRC_FREQ1_DRAMTMG5  
+memory set 0x3D402118 32 0x01010004 #DDRC_FREQ1_DRAMTMG6  
+memory set 0x3D40211C 32 0x00000302 #DDRC_FREQ1_DRAMTMG7  
+memory set 0x3D402130 32 0x00020300 #DDRC_FREQ1_DRAMTMG12  
+memory set 0x3D402134 32 0x0A100002 #DDRC_FREQ1_DRAMTMG13  
+memory set 0x3D402138 32 0x0000001D #DDRC_FREQ1_DRAMTMG14  
+memory set 0x3D402144 32 0x0014000A #DDRC_FREQ1_DRAMTMG17  
+memory set 0x3D402180 32 0x00640004 #DDRC_FREQ1_ZQCTL0  
+memory set 0x3D402190 32 0x03818200 #DDRC_FREQ1_DFITMG0  
+memory set 0x3D402194 32 0x00080303 #DDRC_FREQ1_DFITMG1  
+memory set 0x3D4021B4 32 0x00000100 #DDRC_FREQ1_DFITMG2  
+memory set 0x3D4020F4 32 0x00000599 #DDRC_FREQ1_RANKCTL   
+      
+# DDR-50MHz clock configuration      
+memory set 0x3D403020 32 0x00000021 #DDRC_FREQ2_DERATEEN  
+memory set 0x3D403024 32 0x00001F40 #DDRC_FREQ2_DERATEINT  
+memory set 0x3D403050 32 0x0020D040 #DDRC_FREQ2_RFSHCTL0   
+memory set 0x3D403064 32 0x00030007 #DDRC_FREQ2_RFSHTMG    
+memory set 0x3D4030DC 32 0x00840000 #DDRC_FREQ2_INIT3      
+memory set 0x3D4030E0 32 0x00310000 #DDRC_FREQ2_INIT4      
+memory set 0x3D4030E8 32 0x0066004D #DDRC_FREQ2_INIT6      
+memory set 0x3D4030EC 32 0x0016004D #DDRC_FREQ2_INIT7      
+memory set 0x3D403100 32 0x0A010102 #DDRC_FREQ2_DRAMTMG0   
+memory set 0x3D403104 32 0x00030404 #DDRC_FREQ2_DRAMTMG1   
+memory set 0x3D403108 32 0x0203060B #DDRC_FREQ2_DRAMTMG2   
+memory set 0x3D40310C 32 0x00505000 #DDRC_FREQ2_DRAMTMG3   
+memory set 0x3D403110 32 0x02040202 #DDRC_FREQ2_DRAMTMG4   
+memory set 0x3D403114 32 0x02030202 #DDRC_FREQ2_DRAMTMG5   
+memory set 0x3D403118 32 0x01010004 #DDRC_FREQ2_DRAMTMG6   
+memory set 0x3D40311C 32 0x00000302 #DDRC_FREQ2_DRAMTMG7   
+memory set 0x3D403130 32 0x00020300 #DDRC_FREQ2_DRAMTMG12  
+memory set 0x3D403134 32 0x0A100002 #DDRC_FREQ2_DRAMTMG13  
+memory set 0x3D403138 32 0x00000008 #DDRC_FREQ2_DRAMTMG14  
+memory set 0x3D403144 32 0x00050003 #DDRC_FREQ2_DRAMTMG17  
+memory set 0x3D403180 32 0x00190004 #DDRC_FREQ2_ZQCTL0  
+memory set 0x3D403190 32 0x03818200 #DDRC_FREQ2_DFITMG0    
+memory set 0x3D403194 32 0x00080303 #DDRC_FREQ2_DFITMG1  
+memory set 0x3D4031B4 32 0x00000100 #DDRC_FREQ2_DFITMG2    
+memory set 0x3D4030F4 32 0x00000599 #DDRC_FREQ2_RANKCTL   
+      
+memory set  0x3D400028 32 0x00000000 #DDRC_MSTR2  
+      
+#RESET DDRC      
+memory set 0x30391000 32 0x8F000004 #SRC_DDRC_RCR_ADDR  
+memory set 0x30391000 32 0x8F000000 #SRC_DDRC_RCR_ADDR  
+      
+memory set  0x3D400304 32 0x00000000 #DDRC_DBG1  
+memory set 0x3D400030 32 0x000000A8 #DDRC_PWRCTL  
+memory set 0x3D400320 32 0x00000000 #DDRC_SWCTL  
+      
+memory set 0x3D000000 32 0x00000001 #DDRC_DDR_SS_GPR0: LPDDR4 mode  
+      
+memory set 0x3D4001B0 32 0x00000010 #DDRC_DDR_DFIMISC:12:8]dfi_freq, [5]dfi_init_start, [4]ctl_idle_en  
+      
+# DDR PHY DQ lane to memory mapping      
+memory set 0x3C040280 32 0x00000001 #DDR_PHY_Dq0LnSel_0  
+memory set 0x3C040284 32 0x00000000 #DDR_PHY_Dq1LnSel_0  
+memory set 0x3C040288 32 0x00000005 #DDR_PHY_Dq2LnSel_0  
+memory set 0x3C04028C 32 0x00000003 #DDR_PHY_Dq3LnSel_0  
+memory set 0x3C040290 32 0x00000002 #DDR_PHY_Dq4LnSel_0  
+memory set 0x3C040294 32 0x00000004 #DDR_PHY_Dq5LnSel_0  
+memory set 0x3C040298 32 0x00000006 #DDR_PHY_Dq6LnSel_0  
+memory set 0x3C04029C 32 0x00000007 #DDR_PHY_Dq7LnSel_0  
+memory set 0x3C044280 32 0x00000006 #DDR_PHY_Dq0LnSel_1  
+memory set 0x3C044284 32 0x00000001 #DDR_PHY_Dq1LnSel_1  
+memory set 0x3C044288 32 0x00000002 #DDR_PHY_Dq2LnSel_1  
+memory set 0x3C04428C 32 0x00000003 #DDR_PHY_Dq3LnSel_1  
+memory set 0x3C044290 32 0x00000004 #DDR_PHY_Dq4LnSel_1  
+memory set 0x3C044294 32 0x00000005 #DDR_PHY_Dq5LnSel_1  
+memory set 0x3C044298 32 0x00000000 #DDR_PHY_Dq6LnSel_1  
+memory set 0x3C04429C 32 0x00000007 #DDR_PHY_Dq7LnSel_1  
+memory set 0x3C048280 32 0x00000006 #DDR_PHY_Dq0LnSel_2  
+memory set 0x3C048284 32 0x00000001 #DDR_PHY_Dq1LnSel_2  
+memory set 0x3C048288 32 0x00000002 #DDR_PHY_Dq2LnSel_2  
+memory set 0x3C04828C 32 0x00000003 #DDR_PHY_Dq3LnSel_2  
+memory set 0x3C048290 32 0x00000004 #DDR_PHY_Dq4LnSel_2  
+memory set 0x3C048294 32 0x00000005 #DDR_PHY_Dq5LnSel_2  
+memory set 0x3C048298 32 0x00000000 #DDR_PHY_Dq6LnSel_2  
+memory set 0x3C04829C 32 0x00000007 #DDR_PHY_Dq7LnSel_2  
+memory set 0x3C04C280 32 0x00000001 #DDR_PHY_Dq0LnSel_3  
+memory set 0x3C04C284 32 0x00000000 #DDR_PHY_Dq1LnSel_3  
+memory set 0x3C04C288 32 0x00000005 #DDR_PHY_Dq2LnSel_3  
+memory set 0x3C04C28C 32 0x00000003 #DDR_PHY_Dq3LnSel_3  
+memory set 0x3C04C290 32 0x00000002 #DDR_PHY_Dq4LnSel_3  
+memory set 0x3C04C294 32 0x00000004 #DDR_PHY_Dq5LnSel_3  
+memory set 0x3C04C298 32 0x00000006 #DDR_PHY_Dq6LnSel_3  
+memory set 0x3C04C29C 32 0x00000007 #DDR_PHY_Dq7LnSel_3  
+      
+#########################      
+# DDR parameter settings      
+#########################      
+      
+ddrparam set dram_type  2 #DDR4=0,DDR3=1,LPDDR4=2,LPDDR3=3,DDR5=4  
+      
+ddrparam set data_width  32 #16bit or 32bit only  
+      
+ddrparam set num_pstat  3 # number of frequency setpoints for Hardware Fast Frequency Change  
+      
+ddrparam set train_2d  1 #0=1D training only, 1=1D&2D training  
+      
+ddrparam set PhyVref  0x11 # Initial VREF value  
+      
+ddrparam set csPresent  0x3   
+      
+#### DDR frequency point0 #####      
+ddrparam set frequency0  1500 #Freq0 setpoint frequency  
+ddrparam set pllbypass0  0   
+freq0 set    0x3038A088 32 0x07070000 #CCM_TARGET_ROOT_CLR(DRAM_APB_CLK_ROOT)  
+freq0 set    0x3038A084 32 0x04030000 #CCM_TARGET_ROOT_SET(DRAM_APB_CLK_ROOT):MUX=4(system_pll1_800M_clk), PRE_PODF=3 //DRAM_APB_CLK=800/4=200MHz  
+freq0 set    0x303A00EC 32 0x0000FFFF #PGC_CPU_MAPPING,disable the clock gating  
+freq0 setbit 0x303A00F8 32 0x20       #GPC_PU_PGC_SW_PUP_REQ: DDR1_SW_PUP_REQ=1  
+freq0 set     0x30360054 32 0xFA080 #DRAM_PLL_FDIV_CTL0: For 1500MHz, pll_main_div = 250, pll_pre_div = 8, pll_post_div = 0  
+freq0 set     0x30360058 32 0x00000000 #DRAM_PLL_FDIV_CTL1: pll_dsm=0  
+freq0 setbit  0x30360050  32 0x200  #DRAM_PLL_GNRL_CTL: pll_rst = 1  
+freq0 clrbit  0x30360050 32 0x10 #DRAM_PLL_GNRL_CTL: pll_bypass = 0  
+freq0 chkbit1 0x30360050 32 0x80000000 #DRAM_PLL_GNRL_CTL: check pll_lock=1?  
+freq0 set  0x30389808 32 0x01000000 #CCM_TARGET_ROOT_CLR(DRAM_SEL): clear DRAM PLL bypass bit24  
+      
+#### DDR frequency point1 #####      
+#Following frequency setpoint 1 settings are commented/uncommented based on frequency select and if number of setpoints > 1      
+ddrparam set frequency1  200   
+ddrparam set pllbypass1  1   
+freq1 set 0x3038A008 32 0x07070000 #CCM_TARGET_ROOT_CLR(DRAM_ALT_CLK_ROOT)  
+freq1 set 0x3038A004 32 0x01010000 #CCM_TARGET_ROOT_SET(DRAM_ALT_CLK_ROOT):MUX=1(system_pll1_800m_clk), PRE_PODF=2 //DRAM_ALT_CLK=800/2=400MHz  
+freq1 set 0x3038A088 32 0x07070000 #CCM_TARGET_ROOT_CLR(DRAM_APB_CLK_ROOT)  
+freq1 set 0x3038A084 32 0x03010000 #CCM_TARGET_ROOT_SET(DRAM_APB_CLK_ROOT):MUX=3(system_pll1_160m_clk),  PRE_PODF=2 //DRAM_APB_CLK=160/2=80MHz  
+freq1 set 0x303A00EC 32 0x0000FFFF #PGC_CPU_MAPPING,disable the clock gating  
+freq1 setbit 0x303A00F8 32 0x20       #GPC_PU_PGC_SW_PUP_REQ: DDR1_SW_PUP_REQ=1  
+freq1 set 0x30389804 32 0x01000000 #CCM_TARGET_ROOT_CLR(DRAM_SEL): enable DRAM PLL bypass bit24  
+      
+#### DDR frequency point2 #####      
+ddrparam set frequency2  50   
+ddrparam set pllbypass2  1   
+freq2 set 0x3038A008 32 0x07070000 #CCM_TARGET_ROOT_CLR(DRAM_ALT_CLK_ROOT)  
+freq2 set 0x3038A004 32 0x02000000 #CCM_TARGET_ROOT_SET(DRAM_ALT_CLK_ROOT):MUX=2(system_pll1_100m_clk), PRE_PODF=1 //DRAM_ALT_CLK=100/1=100MHz  
+freq2 set 0x3038A088 32 0x07070000 #CCM_TARGET_ROOT_CLR(DRAM_APB_CLK_ROOT)  
+freq2 set 0x3038A084 32 0x02010000 #CCM_TARGET_ROOT_SET(DRAM_APB_CLK_ROOT):MUX=2(system_pll1_40m_clk),  PRE_PODF=2 //DRAM_APB_CLK=40/2=20MHz  
+freq2 set 0x303A00EC 32 0x0000FFFF #PGC_CPU_MAPPING,disable the clock gating  
+freq2 setbit 0x303A00F8 32 0x20       #GPC_PU_PGC_SW_PUP_REQ: DDR1_SW_PUP_REQ=1  
+freq2 set 0x30389804 32 0x01000000 #CCM_TARGET_ROOT_CLR(DRAM_SEL): enable DRAM PLL bypass bit24  
+      
+# The following is to configure the recommended training, it is strongly recommended not to change this      
+ddrparam set TrainCtrl0  0x131f #TrainCtrl[0] = Run DevInit - Device/phy initialization. Should always be set.  
+    #TrainCtrl[1] = Run WrLvl - Write leveling  
+    #TrainCtrl[2] = Run RxEn - Read gate training  
+    #TrainCtrl[3] = Run RdDQS1D - 1d read dqs training  
+    #TrainCtrl[4] = Run WrDQ1D - 1d write dq training  
+    #TrainCtrl[5] = RFU, must be zero  
+    #TrainCtrl[6] = RFU, must be zero  
+    #TrainCtrl[7] = RFU, must be zero  
+    #TrainCtrl[8] = Run RdDeskew - Per lane read dq deskew training  
+    #TrainCtrl[9] = Run MxRdLat - Max read latency training  
+    #TrainCtrl[11-10] = RFU, must be zero  
+    #TrainCtrl[12]      = Run LPCA - CA Training  
+    #TrainCtrl[15-13] = RFU, must be zero  
+ddrparam set TrainCtrl1  0x121f   
+ddrparam set TrainCtrl2  0x121f   
+      
+# The following is for internal factory use, it is strongly recommended not to change this      
+ddrparam set TrainInfo  0xC8 #0x05 = Detailed debug (e.g. eys delays)  
+    #0x0A = Coarse debug info (e.g. rank information)  
+    #0xC8 = Stage completion   
+    #0xC9 = Assertion messages  
+    #0xFF = Firmware complete  
+    #others = reserved  
+      
+ddrparam set MR1   0xD4   
+ddrparam set MR2   0x2D   
+ddrparam set MR3   0x31   
+ddrparam set MR4   0x00   
+ddrparam set MR11  0x66   
+ddrparam set MR12  0x4D   
+ddrparam set MR13  0x00   
+ddrparam set MR14  0x4D   
+ddrparam set MR16  0x00   
+ddrparam set MR17  0x00   
+ddrparam set MR22  0x16   
+ddrparam set MR24  0x00   
+      
+ddrparam set MR1-1  0x84   
+ddrparam set MR2-1  0x00   
+ddrparam set MR3-1  0x31   
+ddrparam set MR4-1  0x00   
+ddrparam set MR11-1  0x66   
+ddrparam set MR12-1  0x4D   
+ddrparam set MR13-1  0x00   
+ddrparam set MR14-1  0x4D   
+ddrparam set MR16-1  0x00   
+ddrparam set MR17-1  0x00   
+ddrparam set MR22-1  0x16   
+ddrparam set MR24-1  0x00   
+      
+ddrparam set MR1-2  0x84   
+ddrparam set MR2-2  0x00   
+ddrparam set MR3-2  0x31   
+ddrparam set MR4-2  0x00   
+ddrparam set MR11-2  0x66   
+ddrparam set MR12-2  0x4D   
+ddrparam set MR13-2  0x00   
+ddrparam set MR14-2  0x4D   
+ddrparam set MR16-2  0x00   
+ddrparam set MR17-2  0x00   
+ddrparam set MR22-2  0x16   
+ddrparam set MR24-2  0x00   
+      
+ddrparam set ATxImpedance  40   
+ddrparam set ODTImpedance  40   
+ddrparam set TxImpedance   34   
+      
+ddrparam set lp4x_mode     0x00   
+ddrparam set read_dbi      0x00   
+ddrparam set extCalRes     0x00   
+ddrparam set WDQSExt       0x01   
+      
+ddrparam set SlewRiseDQ    0x0f   
+ddrparam set SlewFallDQ    0x0f   
+ddrparam set SlewFallAC    0x0f   
+ddrparam set SlewRiseAC    0x0f   
+      
+ddrparam set CaliInterval  0x09   
+ddrparam set CaliOnce      0x00   
+      
+ddrparam set RX2D_trainOpt  0x00   
+ddrparam set TX2D_trainOpt  0x00   
+ddrparam set Share_2dVref  0x01   
+ddrparam set Delay_weight2d  0x7F   
+ddrparam set Volt_weight2d  0x1F   

@@ -1,0 +1,18 @@
+uuu_version 1.2.39
+
+# Boot U-Boot over USB (same as uuu -b spl flash.bin)
+SDP: boot -f ../flash.bin
+SDPV: delay 1000
+SDPV: write -f ../flash.bin -skipspl
+SDPV: jump
+
+# U-Boot enters fastboot on USB boot; push kernel + DTB into RAM and boot
+# them. Nothing is written to eMMC/SD. With no rootfs yet this ends in
+# "VFS: Unable to mount root fs", after PCIe has enumerated.
+FB: ucmd setenv fastboot_buffer 0x40400000
+FB: download -f Image
+FB: ucmd setenv fastboot_buffer 0x43000000
+FB: download -f imx8mm-m8-minima.dtb
+FB: ucmd setenv bootargs console=ttymxc1,115200 earlycon=ec_imx6q,0x30890000,115200 loglevel=7
+FB: acmd booti 0x40400000 - 0x43000000
+FB: done

@@ -1,0 +1,188 @@
+Downloading file 'bin\lpddr4_train1d_string_v201709.bin' ..Done
+
+Downloading file 'bin\lpddr4_train2d_string_v201709.bin' ..Done
+
+Downloading file 'bin\lpddr4_imem_1d_v201709.bin' ..Done
+
+Downloading file 'bin\lpddr4_dmem_1d_v201709.bin' ..Done
+
+Downloading file 'bin\lpddr4_imem_2d_v201709.bin' ..Done
+
+Downloading file 'bin\lpddr4_dmem_2d_v201709.bin' ..Done
+
+Downloading IVT header...Done
+Downloading file 'bin\m845s_ddr_stress_test.bin' ...Done
+
+Download is complete
+Waiting for the target board boot...
+
+===================hardware_init=====================
+
+********Found PMIC BD718XX**********
+hardware_init exit
+
+*************************************************************************
+
+*************************************************************************
+
+*************************************************************************
+       MX8 DDR Stress Test V3.30
+       Built on Nov 24 2021 13:30:14
+*************************************************************************
+
+Waiting for board configuration from PC-end...
+
+--Set up the MMU and enable I and D cache--
+   - This is the Cortex-A53 core
+  - Check if I cache is enabled 
+  - Enabling I cache since it was disabled 
+  - Push base address of TTB to TTBR0_EL3 
+  - Config TCR_EL3 
+  - Config MAIR_EL3 
+  - Enable MMU 
+  - Data Cache has been enabled 
+  - Check system memory register, only for debug 
+
+   - VMCR Check:
+   - ttbr0_el3: 0x93d000
+   - tcr_el3: 0x2051c
+   - mair_el3: 0x774400
+   - sctlr_el3: 0xc01815
+   - id_aa64mmfr0_el1: 0x1122
+
+  - MMU and cache setup complete 
+
+*************************************************************************
+            ARM clock(CA53) rate: 1800MHz
+            DDR Clock: 1500MHz
+
+============================================
+        DDR configuration
+DDR type is LPDDR4
+Data width: 32, bank num: 8
+Row size: 16, col size: 10
+Two chip selects are used 
+Number of DDR controllers used on the SoC: 1
+Density per chip select:   2048MB 
+Density per controller is: 4096MB 
+Total density detected on the board is: 4096MB 
+============================================
+
+MX8M-mini: Cortex-A53 is found
+
+*************************************************************************
+
+============ Step 1: DDRPHY Training... ============
+---DDR 1D-Training @1500Mhz...
+[Process] End of CA training
+[Process] End of initialization
+[Process] End of read enable training
+[Process] End of fine write leveling
+[Process] End of read DQ deskew training
+[Process] End of MPR read delay center optimization
+[Process] End of Write Leveling coarse delay
+[Process] End of write delay center optimization
+[Process] End of read delay center optimization
+[Process] End of max read latency training
+[Result] PASS
+---DDR 1D-Training @200Mhz...
+[Process] End of CA training
+[Process] End of initialization
+[Process] End of read enable training
+[Process] End of fine write leveling
+[Process] End of MPR read delay center optimization
+[Process] End of Write Leveling coarse delay
+[Process] End of write delay center optimization
+[Process] End of read delay center optimization
+[Process] End of max read latency training
+[Result] PASS
+---DDR 1D-Training @50Mhz...
+[Process] End of CA training
+[Process] End of initialization
+[Process] End of read enable training
+[Process] End of fine write leveling
+[Process] End of MPR read delay center optimization
+[Process] End of Write Leveling coarse delay
+[Process] End of write delay center optimization
+[Process] End of read delay center optimization
+[Process] End of max read latency training
+[Result] PASS
+---DDR 2D-Training @1500Mhz...
+[Process] End of initialization
+[Process] End of 2D read delay/voltage center optimization
+[Process] End of 2D read delay/voltage center optimization
+[Process] End of 2D write delay/voltage center optimization
+[Process] End of 2D write delay/voltage center optimization
+[Result] PASS
+
+============ Step 2: DDR memory accessing... ============
+Verifying DDR frequency point0@1500MHz.......Pass
+Verifying DDR frequency point1@200MHz.......Pass
+Verifying DDR frequency point2@50MHz.......Pass
+[Result] OK
+
+============ Step 3: DDR parameters processing... ============
+[Result] Done
+
+Success: DDR Calibration completed!!!
+'lpddr4_timing.c' is created!
+DDR Stress Test Iteration 1
+  -------------------------------- 
+  --Running DDR test on region 1-- 
+  -------------------------------- 
+
+t0.1: data is addr test
+....
+t0.2: row hop read test
+...
+
+t1: memcpy SSN armv8_x32 test
+....
+t2: byte-wise SSN armv8_x32 test
+..
+t3: memcpy pseudo random pattern test 
+....................................................................................................................................
+t4: IRAM_to_DDRv1 test
+...
+
+t5: IRAM_to_DDRv2 test
+  -------------------------------- 
+  --Running DDR test on frequency point1@200MHz-- 
+  -------------------------------- 
+
+t0.1: data is addr test
+....
+t0.2: row hop read test
+...
+
+t1: memcpy SSN armv8_x32 test
+....
+t2: byte-wise SSN armv8_x32 test
+..
+t3: memcpy pseudo random pattern test 
+....................................................................................................................................
+t4: IRAM_to_DDRv1 test
+...
+
+t5: IRAM_to_DDRv2 test
+  -------------------------------- 
+  --Running DDR test on frequency point2@50MHz-- 
+  -------------------------------- 
+
+t0.1: data is addr test
+....
+t0.2: row hop read test
+...
+
+t1: memcpy SSN armv8_x32 test
+....
+t2: byte-wise SSN armv8_x32 test
+..
+t3: memcpy pseudo random pattern test 
+....................................................................................................................................
+t4: IRAM_to_DDRv1 test
+...
+
+t5: IRAM_to_DDRv2 test
+
+Success: DDR Stress test completed!!!

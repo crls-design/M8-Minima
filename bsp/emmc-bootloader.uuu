@@ -1,0 +1,32 @@
+uuu_version 1.2.39
+
+# Write flash.bin to the eMMC boot0 hardware partition and make boot0 the
+# eMMC boot source. Run with the board strapped to serial download
+# (01|XXXXX|0); afterwards strap eMMC boot (10|10010|0).
+# Only boot0 and EXT_CSD PARTITION_CONFIG are touched; the user area
+# (future rootfs) is left alone.
+
+# Boot U-Boot over USB (same as uuu -b spl flash.bin)
+SDP: boot -f flash.bin
+SDPV: delay 1000
+SDPV: write -f flash.bin -skipspl
+SDPV: jump
+
+FB: ucmd setenv fastboot_buffer ${loadaddr}
+FB: download -f flash.bin
+FB: ucmd setexpr fb_blks ${filesize} + 0x1ff
+FB: ucmd setexpr fb_blks ${fb_blks} / 0x200
+FB: ucmd printenv filesize fb_blks
+
+# i.MX8MM boot ROM reads the image at 33 KiB (sector 0x42) of the boot partition
+FB: ucmd mmc dev 0 1
+FB: ucmd mmc write ${fastboot_buffer} 0x42 ${fb_blks}
+
+# Read back and compare before switching the boot partition
+FB: ucmd mmc read 0x50000000 0x42 ${fb_blks}
+FB: ucmd cmp.b ${fastboot_buffer} 0x50000000 ${filesize}
+
+# PARTITION_CONFIG: boot ack on, boot from boot0, access user area
+FB: ucmd mmc partconf 0 1 1 0
+FB: ucmd mmc dev 0 0
+FB: done

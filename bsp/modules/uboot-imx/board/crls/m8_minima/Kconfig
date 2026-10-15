@@ -1,0 +1,18 @@
+if TARGET_M8_MINIMA
+
+config SYS_BOARD
+	default "m8_minima"
+
+config SYS_VENDOR
+	default "crls"
+
+config SYS_CONFIG_NAME
+	default "m8_minima"
+
+config IMX_CONFIG
+	default "board/crls/m8_minima/imximage-8mm.cfg"
+
+config IMX8M_1G_MEMORY
+	bool "imx8m 1GB memory size"
+
+endif

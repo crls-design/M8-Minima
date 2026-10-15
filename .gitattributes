@@ -1,0 +1,20 @@
+# Keep scripts and sources LF even with core.autocrlf=true, so they run
+# directly from WSL (bash scripts/<name>.sh) without stripping CR first
+*.sh            text eol=lf
+*.config        text eol=lf
+*.md            text eol=lf
+bsp/modules/**  text eol=lf
+bsp/ddr/*.c     text eol=lf
+bsp/ddr/*.ds    text eol=lf
+
+# uuu.exe runs on Windows
+*.uuu           text eol=crlf
+
+# Binaries
+*.bin           binary
+*.dtb           binary
+*.img           binary
+*.pdf           binary
+*.jpg           binary
+*.xlsx          binary
+bsp/ram-boot/Image binary
